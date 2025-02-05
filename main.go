@@ -38,14 +38,6 @@ func FindCepHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	//result, err := json.Marshal(cep)
-	//if err != nil {
-	//	http.Error(w, err.Error(), http.StatusInternalServerError
-	//	return
-	//}
-	//w.Write(result)
-	//
 	json.NewEncoder(w).Encode(cep)
 }
 
@@ -63,9 +55,9 @@ func FindCep(cep string) (*Cep, error) {
 	}(resp.Body)
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, error
+		return nil, err
 	}
 	var c Cep
-	error = json.Unmarshal(body, &c)
+	err = json.Unmarshal(body, &c)
 	return &c, nil
 }
