@@ -51,5 +51,4 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
 	}
-	// testee de cmmit
 }
