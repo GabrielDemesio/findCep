@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"net/http"
-	"os"
 )
 
 type Cep struct {
@@ -17,38 +17,55 @@ type Cep struct {
 }
 
 func main() {
-	fmt.Println("Digite um cep: ")
-	var inputCep string
-	fmt.Scanf("%s", &inputCep)
-
-	resp, err := http.Get("https://viacep.com.br/ws/" + inputCep + "/json")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating request: %v\n", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	res, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading response: %v\n", err)
+	http.HandleFunc("/", FindCepHandler)
+	http.ListenAndServe(":8080", nil)
+}
+func FindCepHandler(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.Error(w, "404 not found.", http.StatusNotFound)
 		return
 	}
 
-	var data Cep
-	err = json.Unmarshal(res, &data)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing json: %v\n", err)
+	cepParam := r.URL.Query().Get("cep")
+	if cepParam == "" {
+		http.Error(w, "cep is required", http.StatusBadRequest)
 		return
 	}
-	file, err := os.Create("city.txt")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+	cep, error := FindCep(cepParam)
+	if error != nil {
+		http.Error(w, error.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer file.Close()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
-	_, err = file.WriteString(fmt.Sprintf("CEP: %s\nLocalidade: %s\nUF: %s\n", data.Cep, data.Localidade, data.Uf))
+	//result, err := json.Marshal(cep)
+	//if err != nil {
+	//	http.Error(w, err.Error(), http.StatusInternalServerError
+	//	return
+	//}
+	//w.Write(result)
+	//
+	json.NewEncoder(w).Encode(cep)
+}
+
+func FindCep(cep string) (*Cep, error) {
+	resp, err := http.Get("https://viacep.com.br/ws/" + cep + "/json/")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
+		return nil, err
 	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, error
+	}
+	var c Cep
+	error = json.Unmarshal(body, &c)
+	return &c, nil
 }
